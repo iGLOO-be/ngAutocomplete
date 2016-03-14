@@ -30,5 +30,8 @@
   },
   "devDependencies": {
     "standard": "^6.0.8"
+  },
+  "standard": {
+    "ignore": "examples/*"
   }
 }
