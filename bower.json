@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "main": "src/ngAutocomplete.js",
   "dependencies": {
-    "angular": ">=1.2.0"
+    "angular": "^1.5.0"
   }
 }

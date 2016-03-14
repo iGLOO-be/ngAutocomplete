@@ -1,5 +1,7 @@
 'use strict';
 
+var angular = require('angular')
+
 /**
  * A directive for adding google places autocomplete to a text box
  * google places autocomplete info: https://developers.google.com/maps/documentation/javascript/places
