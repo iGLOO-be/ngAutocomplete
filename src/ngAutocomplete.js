@@ -1,7 +1,8 @@
-/* global google, angular*/
+/*global window*/
 
 'use strict'
 
+var querystring = require('querystring')
 var angular = require('angular')
 
 /**
@@ -32,7 +33,56 @@ var angular = require('angular')
 **/
 
 angular.module('ngAutocomplete', [])
-  .directive('ngAutocomplete', function () {
+  .service('ngAutocompleteGoogleApiLoader', ['$q', function ($q) {
+    return function load (options) {
+      var deferred = $q.defer()
+      var script = null
+
+      var callbackName = '__NG_AUTOCOMPLETE_GOOGLE_CALLBACK_' + new Date().getTime() + '_'
+      window[callbackName] = function () {
+        window[callbackName] = null
+        document.body.removeChild(script)
+        deferred.resolve(window.google)
+      }
+
+      includeScript()
+
+      return deferred.promise
+
+      function includeScript () {
+        var url = '//maps.googleapis.com/maps/api/js?'
+        url += querystring.stringify(Object.assign({
+          callback: callbackName
+        }, options))
+
+        script = document.createElement('script')
+        script.type = 'text/javascript'
+        script.src = url
+        document.body.appendChild(script)
+      }
+    }
+  }])
+
+  .provider('ngAutocompleteGoogleApi', function () {
+    var provider = this
+
+    this.options = {
+      libraries: 'places'
+    }
+
+    this.configure = function (options) {
+      angular.extend(provider.options, options)
+    }
+
+    this.$get = ['ngAutocompleteGoogleApiLoader', '$q', function (loader, $q) {
+      if (!provider._promise) {
+        provider._promise = loader(provider.options)
+      }
+      return provider._promise
+    }]
+  })
+
+  .directive('ngAutocomplete', ['ngAutocompleteGoogleApi', function (ngAutocompleteGoogleApi) {
     return {
       require: 'ngModel',
       scope: {
@@ -79,78 +129,81 @@ angular.module('ngAutocomplete', [])
             }
           }
         }
-        if (scope.gPlace === undefined) {
-          scope.gPlace = new google.maps.places.Autocomplete(element[0], {})
-        }
-        google.maps.event.addListener(scope.gPlace, 'place_changed', function () {
-          var result = scope.gPlace.getPlace()
-          if (result !== undefined) {
-            if (result.address_components !== undefined) {
-              scope.$apply(function () {
-                scope.details = result
 
-                controller.$setViewValue(element.val())
-              })
-            } else {
-              if (watchEnter) {
-                getPlace(result)
+        ngAutocompleteGoogleApi.then(function (google) {
+          if (scope.gPlace === undefined) {
+            scope.gPlace = new google.maps.places.Autocomplete(element[0], {})
+          }
+          google.maps.event.addListener(scope.gPlace, 'place_changed', function () {
+            var result = scope.gPlace.getPlace()
+            if (result !== undefined) {
+              if (result.address_components !== undefined) {
+                scope.$apply(function () {
+                  scope.details = result
+
+                  controller.$setViewValue(element.val())
+                })
+              } else {
+                if (watchEnter) {
+                  getPlace(result)
+                }
               }
             }
-          }
-        })
+          })
 
-        // function to get retrieve the autocompletes first result using the AutocompleteService
-        var getPlace = function (result) {
-          var autocompleteService = new google.maps.places.AutocompleteService()
-          if (result.name.length > 0) {
-            autocompleteService.getPlacePredictions(
-              {
-                input: result.name,
-                offset: result.name.length
-              },
-              function listentoresult (list, status) {
-                if (list === null || list.length === 0) {
-                  scope.$apply(function () {
-                    scope.details = null
-                  })
-                } else {
-                  var placesService = new google.maps.places.PlacesService(element[0])
-                  placesService.getDetails(
-                    {'reference': list[0].reference},
-                    function detailsresult (detailsResult, placesServiceStatus) {
-                      if (placesServiceStatus === google.maps.GeocoderStatus.OK) {
-                        scope.$apply(function () {
-                          controller.$setViewValue(detailsResult.formatted_address)
-                          element.val(detailsResult.formatted_address)
-
-                          scope.details = detailsResult
-
-                          // on focusout the value reverts, need to set it again.
-                          element.on('focusout', function (event) {
+          // function to get retrieve the autocompletes first result using the AutocompleteService
+          var getPlace = function (result) {
+            var autocompleteService = new google.maps.places.AutocompleteService()
+            if (result.name.length > 0) {
+              autocompleteService.getPlacePredictions(
+                {
+                  input: result.name,
+                  offset: result.name.length
+                },
+                function listentoresult (list, status) {
+                  if (list === null || list.length === 0) {
+                    scope.$apply(function () {
+                      scope.details = null
+                    })
+                  } else {
+                    var placesService = new google.maps.places.PlacesService(element[0])
+                    placesService.getDetails(
+                      {'reference': list[0].reference},
+                      function detailsresult (detailsResult, placesServiceStatus) {
+                        if (placesServiceStatus === google.maps.GeocoderStatus.OK) {
+                          scope.$apply(function () {
+                            controller.$setViewValue(detailsResult.formatted_address)
                             element.val(detailsResult.formatted_address)
-                            element.unbind('focusout')
+
+                            scope.details = detailsResult
+
+                            // on focusout the value reverts, need to set it again.
+                            element.on('focusout', function (event) {
+                              element.val(detailsResult.formatted_address)
+                              element.unbind('focusout')
+                            })
                           })
-                        })
+                        }
                       }
-                    }
-                  )
-                }
-              })
+                    )
+                  }
+                })
+            }
           }
-        }
 
-        controller.$render = function () {
-          var location = controller.$viewValue
-          element.val(location)
-        }
+          controller.$render = function () {
+            var location = controller.$viewValue
+            element.val(location)
+          }
 
-        // watch options provided to directive
-        scope.watchOptions = function () {
-          return scope.options
-        }
-        scope.$watch(scope.watchOptions, function () {
-          initOpts()
-        }, true)
+          // watch options provided to directive
+          scope.watchOptions = function () {
+            return scope.options
+          }
+          scope.$watch(scope.watchOptions, function () {
+            initOpts()
+          }, true)
+        })
       }
     }
-  })
+  }])
