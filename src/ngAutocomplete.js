@@ -196,18 +196,8 @@ angular.module('ngAutocomplete', [])
             }
           }
 
-          controller.$render = function () {
-            var location = controller.$viewValue
-            element.val(location)
-          }
-
           // watch options provided to directive
-          scope.watchOptions = function () {
-            return scope.options
-          }
-          scope.$watch(scope.watchOptions, function () {
-            initOpts()
-          }, true)
+          scope.$watch('options', initOpts, true)
         })
       }
     }
