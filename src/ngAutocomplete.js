@@ -11,7 +11,7 @@ var angular = require('angular')
  *
  * Usage:
  *
- * <input type="text"  ng-autocomplete ng-model="autocomplete" options="options" details="details/>
+ * <input type="text"  ng-autocomplete="options" ng-model="autocomplete" details="details/>
  *
  * + ng-model - autocomplete textbox value
  *
@@ -87,7 +87,7 @@ angular.module('ngAutocomplete', [])
       require: 'ngModel',
       scope: {
         ngModel: '=',
-        options: '=?',
+        options: '=ngAutocomplete',
         details: '=?'
       },
       link: function (scope, element, attrs, controller) {
