@@ -130,6 +130,13 @@ angular.module('ngAutocomplete', [])
           }
         }
 
+        // Prevent form submit on ENTER
+        element.on('keydown', function (e) {
+          if (e.keyCode === 13) {
+            return false
+          }
+        })
+
         ngAutocompleteGoogleApi.then(function (google) {
           if (scope.gPlace === undefined) {
             scope.gPlace = new google.maps.places.Autocomplete(element[0], {})
