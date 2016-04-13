@@ -67,16 +67,21 @@ angular.module('ngAutocomplete', [])
     var provider = this
 
     this.options = {
-      libraries: 'places'
+      libraries: 'places',
+      loader: null
     }
 
     this.configure = function (options) {
       angular.extend(provider.options, options)
     }
 
-    this.$get = ['ngAutocompleteGoogleApiLoader', '$q', function (loader, $q) {
+    this.$get = ['ngAutocompleteGoogleApiLoader', '$q', '$injector', function (loader, $q, $injector) {
       if (!provider._promise) {
-        provider._promise = loader(provider.options)
+        if (provider.options.loader) {
+          provider._promise = $injector.invoke(provider.options.loader)
+        } else {
+          provider._promise = loader(provider.options)
+        }
       }
       return provider._promise
     }]
